@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "gofmt needed on:" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -o agentsview-rhdh .
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Smoke test CLI
+        run: |
+          ./agentsview-rhdh version
+          ./agentsview-rhdh --help
+          ./agentsview-rhdh rhdh --help
+          ./agentsview-rhdh rhdh jira --help
+          ./agentsview-rhdh rhdh pr --help
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsview-rhdh-linux-amd64
+          path: agentsview-rhdh
